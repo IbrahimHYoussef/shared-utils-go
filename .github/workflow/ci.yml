@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+    lib-checks:
+      name: Lib checks
+      runs-on: ubuntu-latest
+      if: needs.changes.outputs.go == 'true'
+
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v4
+
+        - name: Setup Go
+          uses: actions/setup-go@v5
+          with:
+            go-version-file: ./go.mod
+            cache-dependency-path: |
+              ./go.sum
+              ./go.sum
+              go.work.sum
+
+        - name: Download API dependencies
+          run: go mod download
+
+        - name: Test shared Go utilities
+          run: go test ./... -v

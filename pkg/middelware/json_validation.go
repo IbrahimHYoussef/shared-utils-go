@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	responses "github.com/IbrahimHYoussef/project-management/shared-utils-go/Responses"
+	responses "github.com/IbrahimHYoussef/shared-utils-go/pkg/responses"
 	"github.com/xeipuuv/gojsonschema"
 )
 

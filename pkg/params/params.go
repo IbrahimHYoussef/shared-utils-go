@@ -7,14 +7,13 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/IbrahimHYoussef/project-management/shared-utils-go/validator"
+	"github.com/IbrahimHYoussef/shared-utils-go/pkg/validator"
 )
 
 type QueryParams interface {
 	validator.Validator
 	MapQuery(*http.Request) (QueryParams, error)
 }
-
 
 func BindQuery[T any](r *http.Request) (*T, error) {
 	// get the query dict
@@ -72,7 +71,7 @@ func BindQuery[T any](r *http.Request) (*T, error) {
 			}
 			field.SetBool(bool)
 		case reflect.Slice:
-			return nil,fmt.Errorf("unsupported field type: slices")
+			return nil, fmt.Errorf("unsupported field type: slices")
 		default:
 			return nil, fmt.Errorf("unsupported field type: %s", field.Kind())
 		}

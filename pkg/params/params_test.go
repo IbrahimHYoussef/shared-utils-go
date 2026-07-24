@@ -4,7 +4,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/IbrahimHYoussef/project-management/shared-utils-go/params"
+	"github.com/IbrahimHYoussef/shared-utils-go/pkg/params"
 )
 
 type TestQueryParams struct {

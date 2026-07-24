@@ -3,7 +3,7 @@ package responses
 import (
 	"net/http"
 
-	"github.com/IbrahimHYoussef/project-management/shared-utils-go/jsonutil"
+	"github.com/IbrahimHYoussef/shared-utils-go/pkg/jsonutil"
 )
 
 type UnifiedResponse[T any, E any] struct {

@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	responses "github.com/IbrahimHYoussef/project-management/shared-utils-go/Responses"
-	"github.com/IbrahimHYoussef/project-management/shared-utils-go/errorsutil"
-	jwtSer "github.com/IbrahimHYoussef/project-management/shared-utils-go/jwtutils"
+	"github.com/IbrahimHYoussef/shared-utils-go/pkg/errorsutil"
+	jwtSer "github.com/IbrahimHYoussef/shared-utils-go/pkg/jwtutils"
+	"github.com/IbrahimHYoussef/shared-utils-go/pkg/responses"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -20,7 +20,6 @@ var TOKEN_EXPIRE = errorsutil.NewUnauthorizedError("Token Expired")
 
 // this is the middleware that will authenticate the user using the JWT token
 func AuthMiddleWareFactoryFromService(jwtService *jwtSer.JwtService) func(http.Handler) http.Handler {
-
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			auth_header := r.Header.Get("Authorization")

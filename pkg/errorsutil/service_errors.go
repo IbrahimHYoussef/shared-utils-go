@@ -3,7 +3,7 @@ package errorsutil
 import (
 	"net/http"
 
-	responses "github.com/IbrahimHYoussef/project-management/shared-utils-go/Responses"
+	responses "github.com/IbrahimHYoussef/shared-utils-go/pkg/responses"
 )
 
 // ServiceError represents an error with an HTTP status code

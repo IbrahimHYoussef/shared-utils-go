@@ -1,4 +1,4 @@
-module github.com/IbrahimHYoussef/project-management/shared-utils-go
+module github.com/IbrahimHYoussef/shared-utils-go
 
 go 1.26.4
 
@@ -8,6 +8,8 @@ require (
 	github.com/jackc/pgx/v5 v5.9.0
 	github.com/joho/godotenv v1.5.1
 	github.com/pressly/goose/v3 v3.26.0
+	github.com/testcontainers/testcontainers-go v0.42.0
+	github.com/testcontainers/testcontainers-go/modules/postgres v0.42.0
 	github.com/xeipuuv/gojsonschema v1.2.0
 	golang.org/x/crypto v0.48.0
 )
@@ -56,8 +58,6 @@ require (
 	github.com/shirou/gopsutil/v4 v4.26.3 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
-	github.com/testcontainers/testcontainers-go v0.42.0 // indirect
-	github.com/testcontainers/testcontainers-go/modules/postgres v0.42.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
