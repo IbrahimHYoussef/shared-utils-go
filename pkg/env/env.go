@@ -42,3 +42,4 @@ func LoadEnv(mode string) error {
 	log.Printf("No %s file found in current dir or parent. Working directory: %s. Continuing with existing environment.", fileName, wd)
 	return nil
 }
+
