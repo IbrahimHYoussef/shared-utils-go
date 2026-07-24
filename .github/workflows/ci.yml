@@ -16,7 +16,6 @@ jobs:
     lib-checks:
       name: Lib checks
       runs-on: ubuntu-latest
-      if: needs.changes.outputs.go == 'true'
 
       steps:
         - name: Checkout repository
