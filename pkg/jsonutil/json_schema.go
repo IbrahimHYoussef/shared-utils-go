@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// LoadSchema reads a JSON schema file and returns its contents as a string.
 func LoadSchema(filePath string) (string, error) {
 	logger.Info("loading", "file_path", filePath)
 	date, err := os.ReadFile(filePath)
@@ -14,6 +15,8 @@ func LoadSchema(filePath string) (string, error) {
 	return string(date), nil
 }
 
+// LoadSchemas reads all .json files in dirPath and returns their contents keyed
+// by file name.
 func LoadSchemas(dirPath string) (map[string]string, error) {
 	if dirPath[len(dirPath)-1] != '/' {
 		dirPath = dirPath + "/"

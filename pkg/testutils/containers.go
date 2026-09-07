@@ -1,3 +1,4 @@
+// Package testutils contains helpers for integration tests.
 package testutils
 
 import (
@@ -9,17 +10,30 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+// PostgresTestCred contains credentials used to initialize a Postgres test
+// container.
 type PostgresTestCred struct {
+	// DataBase is the database name created in the container.
 	DataBase string
+	// UserName is the database user name.
 	UserName string
+	// Password is the database user password.
 	Password string
 }
 
+// PostgresContainer wraps a testcontainers Postgres container with its
+// connection string.
 type PostgresContainer struct {
 	*postgres.PostgresContainer
+	// ConnectionString is the PostgreSQL connection string with sslmode disabled.
 	ConnectionString string
 }
 
+// CreatePGContainer starts a Postgres test container and returns it with a
+// connection string.
+//
+// If image is empty, CreatePGContainer uses postgres:18-alpine. Callers are
+// responsible for terminating the returned container when the test is done.
 func CreatePGContainer(ctx context.Context, image string, creds *PostgresTestCred) (*PostgresContainer, error) {
 	// get the env values for the test database
 

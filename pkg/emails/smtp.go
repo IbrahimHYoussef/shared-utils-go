@@ -4,7 +4,9 @@ import (
 	"net/smtp"
 )
 
+// EmailSender sends HTML email through an SMTP server.
 type EmailSender struct {
+	// Host is the SMTP server host name.
 	Host        string
 	port        string
 	fromAddress string
@@ -12,6 +14,8 @@ type EmailSender struct {
 	password    string
 }
 
+// New returns an SMTP EmailSender configured with server and authentication
+// settings.
 func New(host, port, fromAddress, address, password string) *EmailSender {
 	return &EmailSender{
 		Host:        host,
@@ -22,6 +26,8 @@ func New(host, port, fromAddress, address, password string) *EmailSender {
 	}
 }
 
+// SendEmail sends an HTML email to one recipient through the configured SMTP
+// server.
 func (e EmailSender) SendEmail(to string, subject string, body string) error {
 	toList := []string{to}
 	auth := smtp.PlainAuth("", e.address, e.password, e.Host)

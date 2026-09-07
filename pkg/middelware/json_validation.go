@@ -12,6 +12,12 @@ import (
 	"github.com/xeipuuv/gojsonschema"
 )
 
+// ValidationMiddelWare returns middleware that validates a JSON request body
+// against schema.
+//
+// The schema argument must be a JSON Schema string. If schema is empty, an empty
+// schema is used. Valid requests have their body restored before being passed to
+// next so downstream handlers can decode it again.
 func ValidationMiddelWare(schema string) func(http.Handler) http.Handler {
 	// make sure we have a schema to load
 	if len(schema) == 0 {

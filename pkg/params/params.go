@@ -1,3 +1,5 @@
+// Package params contains helpers for binding HTTP query parameters into typed
+// request structs.
 package params
 
 import (
@@ -10,11 +12,20 @@ import (
 	"github.com/IbrahimHYoussef/shared-utils-go/pkg/validator"
 )
 
+// QueryParams describes a request type that can validate itself and map query
+// parameters from an HTTP request.
 type QueryParams interface {
 	validator.Validator
+	// MapQuery maps values from r into a query-parameter request object.
 	MapQuery(*http.Request) (QueryParams, error)
 }
 
+// BindQuery creates a T, reads query values from r, and assigns them to fields
+// by matching each field's json tag to a query parameter name.
+//
+// BindQuery supports string, integer, float, and bool fields. Missing query
+// parameters leave their fields at the zero value. Slice fields and unsupported
+// field kinds return an error.
 func BindQuery[T any](r *http.Request) (*T, error) {
 	// get the query dict
 	values := r.URL.Query()

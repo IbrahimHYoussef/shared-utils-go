@@ -1,3 +1,5 @@
+// Package dbutile contains PostgreSQL connection, migration, transaction, and
+// logging helpers built on pgx.
 package dbutile
 
 import (
@@ -6,6 +8,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// ConnectToDatabase creates a pgx connection pool for dsn, verifies it with
+// Ping, and returns the ready pool.
+//
+// ConnectToDatabase configures MinConns to 1 and MaxConns to 10. It logs and
+// panics if the DSN cannot be parsed, the pool cannot be created, or the ping
+// fails.
 func ConnectToDatabase(ctx context.Context, dsn string) *pgxpool.Pool {
 	// create pgx connection pool with config
 	poolConfig, err := pgxpool.ParseConfig(dsn)

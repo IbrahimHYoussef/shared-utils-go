@@ -6,7 +6,10 @@ import (
 	"math/big"
 )
 
-// GenerateOTP generates a secure OTP string of the specified length using crypto/rand
+// GenerateOTP generates a numeric one-time password with exactly length digits.
+//
+// The generated value is produced with crypto/rand and left-padded with zeros if
+// needed. GenerateOTP returns an error when length is less than 1.
 func GenerateOTP(length int) (string, error) {
 	if length <= 0 {
 		return "", fmt.Errorf("OTP length must be greater than 0")

@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// GenerateUUID generates a random UUID v4
+// GenerateUUID generates a random RFC 4122 UUID version 4 string.
 func GenerateUUID() (string, error) {
 	uuid := make([]byte, 16)
 

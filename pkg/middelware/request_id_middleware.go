@@ -8,10 +8,16 @@ import (
 	"github.com/google/uuid"
 )
 
+// RequestID is the context key type used for storing request IDs.
 type RequestID string
 
+// RequestIDKey is the context key used by RequestIDMiddleWare.
 const RequestIDKey RequestID = "RequestID"
 
+// RequestIDMiddleWare creates a UUIDv7 request ID, stores it in the request
+// context, logs the request, and passes the request to next.
+//
+// Handlers can read the request ID from r.Context().Value(RequestIDKey).
 func RequestIDMiddleWare(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

@@ -1,3 +1,4 @@
+// Package env loads environment variables from mode-specific .env files.
 package env
 
 import (
@@ -9,6 +10,12 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// LoadEnv loads a mode-specific dotenv file into the current process
+// environment.
+//
+// The supported modes are "dev" for .env.dev, "prod" for .env, and "test" for
+// .env.test. Unknown modes default to .env.dev. LoadEnv checks the current
+// directory first and then its parent. Missing files are not treated as errors.
 func LoadEnv(mode string) error {
 	var fileName string
 	switch mode {
@@ -42,4 +49,3 @@ func LoadEnv(mode string) error {
 	log.Printf("No %s file found in current dir or parent. Working directory: %s. Continuing with existing environment.", fileName, wd)
 	return nil
 }
-

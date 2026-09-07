@@ -13,12 +13,22 @@ import (
 
 type contextKey string
 
+// UserClaimsKey is the context key used to store parsed JWT claims.
 const UserClaimsKey contextKey = "claims"
 
+// NOT_ALLOWED is the default unauthorized error returned by authentication
+// middleware when access is denied.
 var NOT_ALLOWED = errorsutil.NewUnauthorizedError("Not Allowed To Access This Endpoint")
+
+// TOKEN_EXPIRE is the default unauthorized error returned when a JWT is expired.
 var TOKEN_EXPIRE = errorsutil.NewUnauthorizedError("Token Expired")
 
-// this is the middleware that will authenticate the user using the JWT token
+// AuthMiddleWareFactoryFromService returns middleware that authenticates requests
+// with jwtService.
+//
+// The middleware expects an Authorization header containing a Bearer token,
+// validates the token into jwtutils.Claims, and stores those claims in the
+// request context under UserClaimsKey.
 func AuthMiddleWareFactoryFromService(jwtService *jwtSer.JwtService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -68,6 +78,12 @@ func AuthMiddleWareFactoryFromService(jwtService *jwtSer.JwtService) func(http.H
 	}
 }
 
+// AuthMiddleWareFactory returns middleware that authenticates requests with a
+// JWT HMAC secret.
+//
+// The middleware requires an Authorization header in the form "Bearer <token>".
+// On success, it stores the parsed token claims in the request context under
+// UserClaimsKey.
 func AuthMiddleWareFactory(JWTKey string) func(http.Handler) http.Handler {
 
 	return func(next http.Handler) http.Handler {

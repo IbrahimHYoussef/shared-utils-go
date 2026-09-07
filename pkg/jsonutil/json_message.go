@@ -1,3 +1,4 @@
+// Package jsonutil contains JSON encoding, decoding, and schema loading helpers.
 package jsonutil
 
 import (
@@ -5,6 +6,7 @@ import (
 	"errors"
 )
 
+// EncodeMessage marshals message to JSON bytes.
 func EncodeMessage(message any) ([]byte, error) {
 	data, err := json.Marshal(message)
 	if err != nil {
@@ -13,6 +15,7 @@ func EncodeMessage(message any) ([]byte, error) {
 	return data, nil
 }
 
+// DecodeMessage unmarshals raw JSON bytes into a new T.
 func DecodeMessage[T any](raw []byte) (*T, error) {
 	// Configure the Conversation and the first message
 	var message T

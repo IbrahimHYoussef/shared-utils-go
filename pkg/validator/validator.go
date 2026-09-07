@@ -1,3 +1,5 @@
+// Package validator contains reusable validation interfaces and simple string
+// validators.
 package validator
 
 import (
@@ -13,21 +15,20 @@ var (
 	hasSpecialRegex = regexp.MustCompile(`[@$!%*#?&]`)
 )
 
-// IsValidEmail checks if an email address is valid
+// IsValidEmail reports whether email has a basic valid email address format.
 func IsValidEmail(email string) bool {
 	return emailRegex.MatchString(strings.TrimSpace(email))
 }
 
-// IsValidPassword checks if a password meets minimum requirements:
-// - At least one letter
-// - At least one digit
-// - At least one special character (@$!%*#?&)
+// IsValidPassword reports whether password contains at least one letter, one
+// digit, and one supported special character from @$!%*#?&.
 func IsValidPassword(password string) bool {
 	return hasLetterRegex.MatchString(password) &&
 		hasDigitRegex.MatchString(password) &&
 		hasSpecialRegex.MatchString(password)
 }
 
+// IsValidOtp reports whether otp is non-empty and contains only decimal digits.
 func IsValidOtp(otp string) bool {
 	if len(otp) == 0 {
 		return false
@@ -40,6 +41,7 @@ func IsValidOtp(otp string) bool {
 	return true
 }
 
+// IsValidUuid reports whether uuid matches the canonical UUID string format.
 func IsValidUuid(uuid string) bool {
 	uuidRegex := regexp.MustCompile(`^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`)
 	return uuidRegex.MatchString(uuid)

@@ -11,7 +11,9 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-// MustMigrateUp runs SQL migrations from the specified directory and panics on error
+// MustMigrateUp runs SQL migrations from migrationsDir and panics on error.
+//
+// MustMigrateUp uses goose with the postgres dialect and the provided pgx pool.
 func MustMigrateUp(ctx context.Context, pool *pgxpool.Pool, migrationsDir string) {
 	logger.Info("Running database migrations", "dir", migrationsDir)
 
