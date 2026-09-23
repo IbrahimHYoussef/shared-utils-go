@@ -2,6 +2,7 @@ package middelware
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -23,122 +24,74 @@ var NOT_ALLOWED = errorsutil.NewUnauthorizedError("Not Allowed To Access This En
 // TOKEN_EXPIRE is the default unauthorized error returned when a JWT is expired.
 var TOKEN_EXPIRE = errorsutil.NewUnauthorizedError("Token Expired")
 
+const bearerPrefix = "Bearer "
+
+// parseFunc parses a raw token into claims and reports whether it is valid.
+type parseFunc func(tokenString string, claims *jwtSer.Claims) (*jwt.Token, error)
+
 // AuthMiddleWareFactoryFromService returns middleware that authenticates requests
 // with jwtService.
 //
-// The middleware expects an Authorization header containing a Bearer token,
-// validates the token into jwtutils.Claims, and stores those claims in the
-// request context under UserClaimsKey.
+// The middleware expects an Authorization header containing a Bearer token. It
+// accepts only HS256 tokens with an exp claim whose iss claim matches the
+// service issuer, and stores the *jwtutils.Claims in the request context under
+// UserClaimsKey. Prefer this factory: it is the only one that checks the issuer.
 func AuthMiddleWareFactoryFromService(jwtService *jwtSer.JwtService) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			auth_header := r.Header.Get("Authorization")
-			if len(auth_header) == 0 {
-				logger.Error("Missing Authorization header")
-				responses.RespondWithError(w, http.StatusUnauthorized, NOT_ALLOWED)
-				return
-			}
-
-			tokenString := auth_header[7:]
-
-			claims := &jwtSer.Claims{}
-
-			token, err := jwtService.ParseWithClaims(tokenString, claims)
-			if err != nil {
-				if err == jwt.ErrTokenSignatureInvalid {
-					responses.RespondWithError(w, http.StatusUnauthorized, NOT_ALLOWED)
-					logger.Error("Invalid token signature", "error", err)
-					return
-				}
-				if err == jwt.ErrTokenMalformed {
-					responses.RespondWithError(w, http.StatusUnauthorized, NOT_ALLOWED)
-					logger.Error("Malformed token", "error", err)
-					return
-				}
-				if err == jwt.ErrTokenExpired {
-					responses.RespondWithError(w, http.StatusUnauthorized, TOKEN_EXPIRE)
-					logger.Error("Expired token", "error", err)
-					return
-				}
-
-				logger.Error("Error parsing token", "error", err)
-				responses.RespondWithError(w, http.StatusUnauthorized, NOT_ALLOWED)
-				return
-			}
-			if !token.Valid {
-				responses.RespondWithError(w, http.StatusUnauthorized, NOT_ALLOWED)
-				logger.Error("Invalid token", "error", err)
-				return
-			}
-
-			ctx := context.WithValue(r.Context(), UserClaimsKey, claims)
-
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
+	return authMiddleware(func(tokenString string, claims *jwtSer.Claims) (*jwt.Token, error) {
+		return jwtService.ParseWithClaims(tokenString, claims)
+	})
 }
 
 // AuthMiddleWareFactory returns middleware that authenticates requests with a
 // JWT HMAC secret.
 //
 // The middleware requires an Authorization header in the form "Bearer <token>".
-// On success, it stores the parsed token claims in the request context under
-// UserClaimsKey.
+// It accepts only HS256 tokens with an exp claim. It cannot check the issuer;
+// use AuthMiddleWareFactoryFromService for that. On success, it stores the
+// *jwtutils.Claims in the request context under UserClaimsKey.
 func AuthMiddleWareFactory(JWTKey string) func(http.Handler) http.Handler {
+	key := []byte(JWTKey)
+	return authMiddleware(func(tokenString string, claims *jwtSer.Claims) (*jwt.Token, error) {
+		return jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return key, nil
+		}, jwtSer.ParseOptions("")...)
+	})
+}
 
+func authMiddleware(parse parseFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			auth_header := r.Header.Get("Authorization")
-			if len(auth_header) == 0 {
+			authHeader := r.Header.Get("Authorization")
+			if authHeader == "" {
 				logger.Error("Missing Authorization header")
 				responses.RespondWithError(w, http.StatusUnauthorized, NOT_ALLOWED)
 				return
 			}
-			if !strings.HasPrefix(auth_header, "Bearer ") || len(auth_header) <= 7 {
-				logger.Error("Auth Header malformed", "header", auth_header)
+			if !strings.HasPrefix(authHeader, bearerPrefix) || len(authHeader) <= len(bearerPrefix) {
+				// The header is not logged: it may contain a credential.
+				logger.Error("Authorization header is not a Bearer token")
 				responses.RespondWithError(w, http.StatusUnauthorized, NOT_ALLOWED)
 				return
 			}
-			tokenString := auth_header[7:]
 
-			// Initialize the generic type properly
-			// var claims T
-			// Create a new instance of the type
-			// claimsPtr := new(T)
-			// claims = *claimsPtr
 			claims := &jwtSer.Claims{}
-
-			token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-				return []byte(JWTKey), nil
-			})
-			if err != nil {
-				if err == jwt.ErrTokenSignatureInvalid {
-					responses.RespondWithError(w, http.StatusUnauthorized, NOT_ALLOWED)
-					logger.Error("Invalid token signature", "error", err)
-					return
-				}
-				if err == jwt.ErrTokenMalformed {
-					responses.RespondWithError(w, http.StatusUnauthorized, NOT_ALLOWED)
-					logger.Error("Malformed token", "error", err)
-					return
-				}
-				if err == jwt.ErrTokenExpired {
-					responses.RespondWithError(w, http.StatusUnauthorized, TOKEN_EXPIRE)
-					logger.Error("Expired token", "error", err)
-					return
-				}
-				logger.Error("Error parsing token", "error", err)
+			token, err := parse(authHeader[len(bearerPrefix):], claims)
+			switch {
+			case errors.Is(err, jwt.ErrTokenExpired):
+				logger.Error("Expired token", "error", err)
+				responses.RespondWithError(w, http.StatusUnauthorized, TOKEN_EXPIRE)
+				return
+			case err != nil:
+				logger.Error("Rejected token", "error", err)
+				responses.RespondWithError(w, http.StatusUnauthorized, NOT_ALLOWED)
+				return
+			case !token.Valid:
+				logger.Error("Invalid token")
 				responses.RespondWithError(w, http.StatusUnauthorized, NOT_ALLOWED)
 				return
 			}
-			if !token.Valid {
-				responses.RespondWithError(w, http.StatusUnauthorized, NOT_ALLOWED)
-				logger.Error("Invalid token", "error", err)
-				return
-			}
 
-			ctx := context.WithValue(r.Context(), UserClaimsKey, token.Claims)
-
+			ctx := context.WithValue(r.Context(), UserClaimsKey, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

@@ -36,6 +36,12 @@ type TransactionalQueries[Q any] interface {
 
 // Transaction wraps a pgx transaction together with a transaction-bound query
 // object.
+//
+// The Transaction returned by the StartOrGet call that began the pgx
+// transaction owns it. StartOrGet calls that find a transaction already in the
+// context get a non-owning handle to the same pgx transaction: Commit and
+// RollBack on that handle do nothing, so only the workflow that started the
+// transaction can finalize it.
 type Transaction[Q TransactionalQueries[Q]] struct {
 	// Qtx is the query object bound to Tx.
 	Qtx Q
@@ -44,19 +50,29 @@ type Transaction[Q TransactionalQueries[Q]] struct {
 	state     TxState
 	startTime time.Time
 	txID      string
+	nested    bool
 }
 
-// StartOrGet returns an existing Transaction from ctx, or starts a new pgx
-// transaction using db and qtx.
+// StartOrGet starts a new pgx transaction using db and qtx, or joins the one
+// already stored in ctx.
 //
-// The returned Transaction contains qtx.WithTx(tx). If beginning the transaction
-// fails, StartOrGet logs the underlying error and returns a generic internal
-// server error.
+// A started transaction contains qtx.WithTx(tx) and is owned by the caller. A
+// joined transaction is a non-owning handle whose Commit and RollBack are
+// no-ops; the owner commits or rolls back the whole workflow. If beginning the
+// transaction fails, StartOrGet logs the underlying error and returns a
+// generic internal server error.
 func StartOrGet[Q TransactionalQueries[Q]](ctx context.Context, db *pgxpool.Pool, qtx Q) (*Transaction[Q], error) {
 	t, exists := GetFromCtx[Q](ctx)
 	if exists {
-		logger.Debug("Using existing transaction from context", "tx_id", t.txID)
-		return t, nil
+		logger.Debug("Joining existing transaction from context", "tx_id", t.txID)
+		return &Transaction[Q]{
+			Qtx:       t.Qtx,
+			Tx:        t.Tx,
+			state:     TxActive,
+			startTime: t.startTime,
+			txID:      t.txID,
+			nested:    true,
+		}, nil
 	}
 
 	txID := fmt.Sprintf("tx_%d", time.Now().UnixNano())
@@ -92,8 +108,13 @@ func StartOrGet[Q TransactionalQueries[Q]](ctx context.Context, db *pgxpool.Pool
 
 // RollBack rolls back an active transaction.
 //
-// Calling RollBack after the transaction has already been finalized is a no-op.
+// Calling RollBack after the transaction has already been finalized, or on a
+// non-owning handle from StartOrGet, is a no-op.
 func (t *Transaction[Q]) RollBack(ctx context.Context) error {
+	if t.nested {
+		logger.Debug("Skipping rollback of joined transaction; its owner finalizes it", "tx_id", t.txID)
+		return nil
+	}
 	if t.state != TxActive {
 		logger.Debug("Transaction already finalized, skipping rollback",
 			"tx_id", t.txID,
@@ -137,7 +158,16 @@ func (t *Transaction[Q]) Rollback(ctx context.Context) error {
 }
 
 // Commit commits the transaction and marks it as committed.
+//
+// Commit on a non-owning handle from StartOrGet is a no-op: the workflow that
+// started the transaction commits it.
 func (t *Transaction[Q]) Commit(ctx context.Context) error {
+	if t.nested {
+		logger.Debug("Skipping commit of joined transaction; its owner finalizes it", "tx_id", t.txID)
+		t.state = TxCommitted
+		return nil
+	}
+
 	duration := time.Since(t.startTime)
 
 	logger.Info("Committing database transaction",

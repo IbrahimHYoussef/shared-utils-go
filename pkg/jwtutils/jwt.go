@@ -109,16 +109,26 @@ func (tm *JwtService) GenerateRefreshSessionToken(length int) (string, error) {
 	return base64.URLEncoding.EncodeToString(bytes), nil
 }
 
+// ParseOptions returns the jwt parser options every token check uses: only
+// HS256 is accepted, an exp claim is required, and when issuer is not empty
+// the iss claim must equal it.
+func ParseOptions(issuer string) []jwt.ParserOption {
+	options := []jwt.ParserOption{
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+		jwt.WithExpirationRequired(),
+	}
+	if issuer != "" {
+		options = append(options, jwt.WithIssuer(issuer))
+	}
+	return options
+}
+
 // ParseWithClaims parses tokenString into claims using the service HMAC secret.
 //
-// ParseWithClaims rejects tokens signed with non-HMAC methods.
+// ParseWithClaims accepts only HS256 tokens that carry an exp claim and, when
+// the service has an issuer, whose iss claim matches it.
 func (tm *JwtService) ParseWithClaims(tokenString string, claims jwt.Claims) (*jwt.Token, error) {
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return tm.secretKey, nil
-	})
+	token, err := jwt.ParseWithClaims(tokenString, claims, tm.keyFunc, ParseOptions(tm.issuer)...)
 
 	if err != nil {
 		return nil, err
@@ -130,14 +140,9 @@ func (tm *JwtService) ParseWithClaims(tokenString string, claims jwt.Claims) (*j
 // ValidateToken parses and validates tokenString into Claims.
 //
 // ValidateToken returns the claims when the token is valid and signed with the
-// service HMAC secret.
+// service HMAC secret. It applies the same checks as ParseWithClaims.
 func (tm *JwtService) ValidateToken(tokenString string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return tm.secretKey, nil
-	})
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, tm.keyFunc, ParseOptions(tm.issuer)...)
 
 	if err != nil {
 		return nil, err
@@ -148,4 +153,11 @@ func (tm *JwtService) ValidateToken(tokenString string) (*Claims, error) {
 	}
 
 	return nil, fmt.Errorf("invalid token")
+}
+
+func (tm *JwtService) keyFunc(token *jwt.Token) (interface{}, error) {
+	if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+	}
+	return tm.secretKey, nil
 }

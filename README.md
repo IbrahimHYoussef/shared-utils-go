@@ -4,16 +4,22 @@ Common Go utility functions used across Go services.
 
 ## Packages
 
-### jwt
-JWT token generation and validation utilities.
+### jwtutils
+HS256 JWT access tokens and random refresh session tokens.
 
 ```go
-import "github.com/yourusername/project-management/shared-utils-go/jwt"
+import "github.com/IbrahimHYoussef/shared-utils-go/pkg/jwtutils"
 
-tm := jwt.NewTokenManager("your-secret-key")
-token, err := tm.GenerateToken("user123", "user@example.com")
-claims, err := tm.ValidateToken(token)
+jwtService := jwtutils.NewJwtManager(secret, 900, 2592000, "my-service") // access s, refresh s, issuer
+token, err := jwtService.GenerateToken(userID, "user@example.com", "user")
+claims, err := jwtService.ValidateToken(token)
+refresh, err := jwtService.GenerateRefreshSessionToken(32)
 ```
+
+`ValidateToken` and `ParseWithClaims` accept only tokens that are signed with HS256, carry an `exp` claim, and have an `iss` claim equal to the service issuer (the issuer check is skipped when the issuer is empty). `ParseOptions(issuer)` returns the same rules for custom parsing.
+
+### middelware (authentication)
+`AuthMiddleWareFactoryFromService(jwtService)` authenticates `Authorization: Bearer <token>` requests with the `jwtutils` rules above and stores `*jwtutils.Claims` in the context under `UserClaimsKey`. Prefer it over `AuthMiddleWareFactory(secret)`, which applies the same rules but cannot check the issuer. Expired tokens get a `Token Expired` 401; every other failure gets `Not Allowed To Access This Endpoint`.
 
 ### crypto
 Password hashing and verification using bcrypt.
@@ -77,6 +83,8 @@ func (r AuthRepository) qtx(ctx context.Context) *database.Queries {
     return r.QTX(ctx)
 }
 ```
+
+Only the call that begins a transaction owns it. When `StartOrGet` finds a transaction already in the context, it returns a joined handle to the same transaction whose `Commit` and `RollBack` do nothing, so a service called inside another service's workflow can keep its usual `StartOrGet` / `defer RollBack` / `Commit` code without finalizing the caller's work. The owner commits once everything succeeded, or rolls back when an error propagates up.
 
 Use the same query object when starting transactions. Any repository method that calls `QTX(ctx)` will automatically use the transaction-bound queries after the transaction is added to the context.
 
