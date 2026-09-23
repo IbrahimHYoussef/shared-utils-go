@@ -31,6 +31,14 @@ hash, err := crypto.HashPassword("mypassword")
 isValid := crypto.CheckPasswordHash("mypassword", hash)
 ```
 
+For high-entropy secrets that are stored hashed (refresh tokens, emailed link tokens, OTP codes), use the SHA-256 helpers instead of bcrypt:
+
+```go
+token, err := crypto.GenerateSecretToken(32) // 32 random bytes, unpadded base64url
+stored := crypto.HashToken(token)            // lowercase hex SHA-256
+ok := crypto.CheckTokenHash(token, stored)   // constant-time comparison
+```
+
 ### validator
 Input validation utilities.
 

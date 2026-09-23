@@ -1,4 +1,5 @@
-// Package crypto contains helpers for password hashing, UUID generation, and
+// Package crypto contains helpers for password hashing, secret token
+// generation and hashing, UUID generation, and
 // one-time password generation.
 package crypto
 
