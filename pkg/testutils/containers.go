@@ -29,26 +29,40 @@ type PostgresContainer struct {
 	ConnectionString string
 }
 
+// Defaults CreatePGContainer uses for an empty image or empty credentials.
+const (
+	DefaultPostgresImage = "postgres:18-alpine"
+	defaultTestDatabase  = "test"
+	defaultTestUser      = "test"
+	defaultTestPassword  = "test"
+	// postgresStartupTimeout bounds the wait for the database to accept
+	// connections after the container starts.
+	postgresStartupTimeout = 60 * time.Second
+)
+
 // CreatePGContainer starts a Postgres test container and returns it with a
 // connection string.
 //
-// If image is empty, CreatePGContainer uses postgres:18-alpine. Callers are
-// responsible for terminating the returned container when the test is done.
+// If image is empty, CreatePGContainer uses DefaultPostgresImage. A nil creds,
+// or any empty field in it, falls back to "test". Callers are responsible for
+// terminating the returned container when the test is done.
 func CreatePGContainer(ctx context.Context, image string, creds *PostgresTestCred) (*PostgresContainer, error) {
-	// get the env values for the test database
-
-	// default container
 	if len(image) == 0 {
-		image = "postgres:18-alpine"
+		image = DefaultPostgresImage
 	}
-	// default creds
+	resolved := PostgresTestCred{DataBase: defaultTestDatabase, UserName: defaultTestUser, Password: defaultTestPassword}
 	if creds != nil {
-		creds = &PostgresTestCred{
-			DataBase: "",
-			UserName: "",
-			Password: "",
+		if creds.DataBase != "" {
+			resolved.DataBase = creds.DataBase
+		}
+		if creds.UserName != "" {
+			resolved.UserName = creds.UserName
+		}
+		if creds.Password != "" {
+			resolved.Password = creds.Password
 		}
 	}
+	creds = &resolved
 
 	pgContainer, err := postgres.Run(
 		ctx,
@@ -58,7 +72,7 @@ func CreatePGContainer(ctx context.Context, image string, creds *PostgresTestCre
 		postgres.WithPassword(creds.Password),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).WithStartupTimeout(5*time.Second)),
+				WithOccurrence(2).WithStartupTimeout(postgresStartupTimeout)),
 	)
 
 	if err != nil {

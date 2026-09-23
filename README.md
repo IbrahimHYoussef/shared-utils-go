@@ -144,6 +144,17 @@ Conversion helpers between Go types and pgx `pgtype` values, used inside reposit
 | `uuid.UUID` | `pgtype.UUID` | `PgUUIDFromGoogle` | `GoogleUUIDFromPg` |
 | `*string` | `[]byte` (json/jsonb) | `BytesFromStringPtr` | `StringPtrFromBytes` |
 
+### testutils
+Postgres testcontainers for integration tests (Docker required).
+
+```go
+container, err := testutils.CreatePGContainer(ctx, "", nil) // postgres:18-alpine, db/user/password "test"
+defer container.Terminate(ctx)
+pool, err := pgxpool.New(ctx, container.ConnectionString)
+```
+
+Pass a `*PostgresTestCred` to choose the database, user or password; empty fields fall back to `test`. The container is ready once Postgres accepts connections (up to 60 s).
+
 ## Installation
 
 ```bash
