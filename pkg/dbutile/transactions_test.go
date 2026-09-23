@@ -2,6 +2,7 @@ package dbutile
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -12,9 +13,12 @@ type fakeTx struct {
 	pgx.Tx
 	commits   int
 	rollbacks int
+	commitErr error
 }
 
-func (f *fakeTx) Commit(context.Context) error   { f.commits++; return nil }
+var errCommit = errors.New("commit failed")
+
+func (f *fakeTx) Commit(context.Context) error   { f.commits++; return f.commitErr }
 func (f *fakeTx) Rollback(context.Context) error { f.rollbacks++; return nil }
 
 type fakeQueries struct{ tx pgx.Tx }
@@ -85,5 +89,47 @@ func TestAddToCtxKeepsTheOwner(t *testing.T) {
 	}
 	if stored, _ := GetFromCtx[fakeQueries](ctx); stored != owner {
 		t.Fatal("context must still hold the owning transaction")
+	}
+}
+
+func TestFinishedTransactionIsNotReused(t *testing.T) {
+	for _, finish := range []struct {
+		name string
+		do   func(ctx context.Context, owner *Transaction[fakeQueries])
+		want TxState
+	}{
+		{"commit", func(ctx context.Context, o *Transaction[fakeQueries]) { _ = o.Commit(ctx) }, TxCommitted},
+		{"rollback", func(ctx context.Context, o *Transaction[fakeQueries]) { _ = o.RollBack(ctx) }, TxRolledBack},
+		{"failed commit", func(ctx context.Context, o *Transaction[fakeQueries]) {
+			o.Tx.(*fakeTx).commitErr = errCommit
+			_ = o.Commit(ctx)
+		}, TxRolledBack},
+	} {
+		t.Run(finish.name, func(t *testing.T) {
+			tx := &fakeTx{}
+			ctx, owner := ownerIn(context.Background(), tx)
+			repo := NewBaseRepository(fakeQueries{})
+
+			if got := repo.QTX(ctx); got.tx != tx {
+				t.Fatal("QTX must use the active transaction")
+			}
+			finish.do(ctx, owner)
+			if owner.State() != finish.want {
+				t.Fatalf("state %v, want %v", owner.State(), finish.want)
+			}
+
+			if _, ok := GetFromCtx[fakeQueries](ctx); ok {
+				t.Fatal("GetFromCtx must not return a finished transaction")
+			}
+			if got := repo.QTX(ctx); got.tx != nil {
+				t.Fatal("QTX must fall back to the default queries after the transaction finished")
+			}
+
+			next := &Transaction[fakeQueries]{Qtx: fakeQueries{tx: &fakeTx{}}, Tx: &fakeTx{}, state: TxActive, txID: "tx_next"}
+			ctx2 := AddToCtx(ctx, next)
+			if got, ok := GetFromCtx[fakeQueries](ctx2); !ok || got != next {
+				t.Fatal("AddToCtx must replace a finished transaction")
+			}
+		})
 	}
 }

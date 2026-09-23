@@ -94,6 +94,8 @@ func (r AuthRepository) qtx(ctx context.Context) *database.Queries {
 
 Only the call that begins a transaction owns it. When `StartOrGet` finds a transaction already in the context, it returns a joined handle to the same transaction whose `Commit` and `RollBack` do nothing, so a service called inside another service's workflow can keep its usual `StartOrGet` / `defer RollBack` / `Commit` code without finalizing the caller's work. The owner commits once everything succeeded, or rolls back when an error propagates up.
 
+A `Transaction` is a small state machine: `Active` until its owner commits or rolls back (a failed commit also ends it), then `Committed` or `RolledBack`; `State()` reports it. A finished transaction stays in its context, but `GetFromCtx` only returns active ones, so code that keeps using that context after the commit — `QTX` in repositories, or a later `StartOrGet` — gets the default queries or a new transaction instead of a closed one. Work done after a commit (sending an email, for example) is therefore safe with the same `ctx`.
+
 Use the same query object when starting transactions. Any repository method that calls `QTX(ctx)` will automatically use the transaction-bound queries after the transaction is added to the context.
 
 ```go

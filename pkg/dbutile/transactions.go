@@ -177,6 +177,9 @@ func (t *Transaction[Q]) Commit(ctx context.Context) error {
 
 	err := t.Tx.Commit(ctx)
 	if err != nil {
+		// pgx closes the transaction when a commit fails, so it is finished
+		// either way.
+		t.state = TxRolledBack
 		logger.Error("Error committing transaction",
 			"error", err,
 			"tx_id", t.txID,
@@ -195,9 +198,16 @@ func (t *Transaction[Q]) Commit(ctx context.Context) error {
 	return nil
 }
 
+// State returns the transaction's lifecycle state.
+func (t *Transaction[Q]) State() TxState {
+	return t.state
+}
+
 // AddToCtx stores t in ctx and returns the derived context.
 //
-// If ctx already has a transaction for Q, AddToCtx returns ctx unchanged.
+// If ctx already has an active transaction for Q, AddToCtx returns ctx
+// unchanged. A finished (committed or rolled back) transaction in ctx is
+// replaced by t.
 func AddToCtx[Q TransactionalQueries[Q]](ctx context.Context, t *Transaction[Q]) context.Context {
 	if _, exists := GetFromCtx[Q](ctx); exists {
 		return ctx
@@ -206,8 +216,16 @@ func AddToCtx[Q TransactionalQueries[Q]](ctx context.Context, t *Transaction[Q])
 	return context.WithValue(ctx, transactionKey, t)
 }
 
-// GetFromCtx returns the transaction stored in ctx for Q.
+// GetFromCtx returns the active transaction stored in ctx for Q.
+//
+// A transaction stays in its context after it commits or rolls back.
+// GetFromCtx reports false for such a finished transaction, so StartOrGet
+// begins a new one and BaseRepository.QTX falls back to the default queries
+// instead of using a closed pgx transaction.
 func GetFromCtx[Q TransactionalQueries[Q]](ctx context.Context) (*Transaction[Q], bool) {
 	tx, ok := ctx.Value(transactionKey).(*Transaction[Q])
-	return tx, ok
+	if !ok || tx.state != TxActive {
+		return nil, false
+	}
+	return tx, true
 }
