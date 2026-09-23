@@ -98,6 +98,34 @@ func RunInTransaction(ctx context.Context, pool *pgxpool.Pool, queries *database
 }
 ```
 
+Use `MapError` and the unique-violation helpers to translate pgx errors inside repositories, so services never import pgx:
+
+```go
+row, err := r.QTX(ctx).CreateUser(ctx, params)
+if dbutile.IsUniqueViolation(err) {
+    return auth.User{}, auth.ErrEmailOrUsernameTaken
+}
+if err != nil {
+    return auth.User{}, dbutile.MapError(err) // pgx.ErrNoRows -> dbutile.ErrNotFound
+}
+```
+
+`UniqueViolationConstraint(err)` also returns the violated constraint name, for example `users_email_lower_key`.
+
+### mapping
+Conversion helpers between Go types and pgx `pgtype` values, used inside repository implementations.
+
+| Go type | pgtype | To pgtype | From pgtype |
+| --- | --- | --- | --- |
+| `string` | `pgtype.Text` | `PgtypeFromString` | `StringFromPgtype` |
+| `*string` | `pgtype.Text` | `PgtypeFromStringPtr` | `StringPtrFromPgtype` |
+| `int64` / `int` | `pgtype.Int8` | `PgtypeFromInt64`, `PgtypeFromInt` | `Int64FromPgtype`, `IntFromPgtype` |
+| `*int64` | `pgtype.Int8` | `PgtypeFromInt64Ptr` | `Int64PtrFromPgtype` |
+| `time.Time` | `pgtype.Timestamptz` | `PgtypeFromTime` | `TimeFromPgtype` |
+| `*time.Time` | `pgtype.Timestamptz` | `PgtypeFromTimePtr` | `TimePtrFromPgtype` |
+| `uuid.UUID` | `pgtype.UUID` | `PgUUIDFromGoogle` | `GoogleUUIDFromPg` |
+| `*string` | `[]byte` (json/jsonb) | `BytesFromStringPtr` | `StringPtrFromBytes` |
+
 ## Installation
 
 ```bash
