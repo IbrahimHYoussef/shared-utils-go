@@ -144,6 +144,29 @@ Conversion helpers between Go types and pgx `pgtype` values, used inside reposit
 | `uuid.UUID` | `pgtype.UUID` | `PgUUIDFromGoogle` | `GoogleUUIDFromPg` |
 | `*string` | `[]byte` (json/jsonb) | `BytesFromStringPtr` | `StringPtrFromBytes` |
 
+### paging
+Helpers for cursor-paged list endpoints (`?cursor=&limit=` in, `{ "items": [...], "next_cursor": "..." | null }` out).
+
+| Function | Description |
+| --- | --- |
+| `ClampLimit(raw, def, max)` | Page size from the raw `limit` query value. Never rejects: absent, `0` or not a number → `def`; below 1 → `1`; above `max` → `max`. |
+| `EncodeCursor(key)` / `DecodeCursor[K](cursor)` | Opaque keyset cursor (base64url JSON). An empty cursor decodes to `nil` (first page); a bad one returns `ErrInvalidCursor`. |
+| `NewPage(rows, limit, keyOf)` | Builds `Page[T]` from rows fetched with `limit+1`: drops the extra row and sets `NextCursor` from the last kept row. |
+
+`Cursor[K]` is a ready key for lists ordered by one sort key, then id.
+
+```go
+limit := paging.ClampLimit(r.URL.Query().Get("limit"), 30, 100)
+after, err := paging.DecodeCursor[paging.Cursor[time.Time]](r.URL.Query().Get("cursor"))
+if err != nil {
+	// 400
+}
+rows, err := repo.List(ctx, after, limit+1) // ORDER BY created_at DESC, id DESC
+page, err := paging.NewPage(rows, limit, func(c Conversation) paging.Cursor[time.Time] {
+	return paging.Cursor[time.Time]{Key: c.CreatedAt, ID: c.ID}
+})
+```
+
 ### testutils
 Postgres testcontainers for integration tests (Docker required).
 
