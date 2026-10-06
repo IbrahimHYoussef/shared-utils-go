@@ -65,6 +65,6 @@ func HandleServiceError(w http.ResponseWriter, err error) {
 	if serviceErr, ok := err.(*ServiceError); ok {
 		responses.RespondWithError(w, serviceErr.StatusCode, serviceErr)
 	} else {
-		responses.RespondWithError(w, http.StatusInternalServerError, "Internal server error")
+		responses.RespondWithError(w, http.StatusInternalServerError, NewInternalError("Internal server error"))
 	}
 }
