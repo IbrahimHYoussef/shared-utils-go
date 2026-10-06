@@ -3,9 +3,12 @@ package testutils
 
 import (
 	"context"
+	"io"
+	"log"
 	"time"
 
 	"github.com/testcontainers/testcontainers-go"
+	tclog "github.com/testcontainers/testcontainers-go/log"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -39,6 +42,12 @@ const (
 	// connections after the container starts.
 	postgresStartupTimeout = 60 * time.Second
 )
+
+// testcontainers logs every container step when tests run with -v; turn its
+// logs off.
+func init() {
+	tclog.SetDefault(log.New(io.Discard, "", 0))
+}
 
 // CreatePGContainer starts a Postgres test container and returns it with a
 // connection string.
