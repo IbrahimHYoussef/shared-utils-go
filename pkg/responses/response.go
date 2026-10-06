@@ -34,7 +34,6 @@ func New[T any, E any](statusCode int, body T, error E, isError bool) UnifiedRes
 
 // ReturnResponse writes the configured HTTP status code and JSON payload to w.
 func (ur UnifiedResponse[T, E]) ReturnResponse(w http.ResponseWriter) error {
-	w.WriteHeader(ur.StatusCode)
 
 	var body any
 	if ur.isError == false {
@@ -47,6 +46,8 @@ func (ur UnifiedResponse[T, E]) ReturnResponse(w http.ResponseWriter) error {
 	if err != nil {
 		return err
 	}
+	w.WriteHeader(ur.StatusCode)
+	
 	return nil
 }
 
