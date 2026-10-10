@@ -81,7 +81,9 @@ func CreatePGContainer(ctx context.Context, image string, creds *PostgresTestCre
 		postgres.WithPassword(creds.Password),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).WithStartupTimeout(postgresStartupTimeout)),
+				WithOccurrence(2).
+				WithStartupTimeout(postgresStartupTimeout),
+		),
 	)
 
 	if err != nil {
