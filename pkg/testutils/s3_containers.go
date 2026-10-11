@@ -25,8 +25,13 @@ type S3Container struct {
 	Credintials    S3TestCred
 }
 
+// Defaults CreateMinioContainer uses for an empty image or empty credentials.
+//
+// DefaultMinioImage is pinned by digest: cgr.dev/chainguard/minio only
+// publishes a floating "latest" tag, and pinning keeps local and CI runs on
+// identical bits. Update the digest deliberately when bumping Minio.
 const (
-	DefaultMinioImage   = "cgr.dev/chainguard/minio"
+	DefaultMinioImage   = "cgr.dev/chainguard/minio@sha256:7df55d002b698e4494a131b848dd553361bbe58b7e19f62d9623c29af1ba9ccf"
 	DefaultEndpoint     = "localhost"
 	DefaultAccessKey    = "minioAdmin"
 	DefaultSecretKey    = "minioAdmin"
@@ -54,7 +59,7 @@ func CreateMinioContainer(ctx context.Context, image string, cred *S3TestCred) (
 		if cred.SecretKey != "" {
 			resolved.SecretKey = cred.SecretKey
 		}
-		cred.UseSSl = cred.UseSSl
+		resolved.UseSSl = cred.UseSSl
 	}
 	cred = &resolved
 
@@ -62,9 +67,12 @@ func CreateMinioContainer(ctx context.Context, image string, cred *S3TestCred) (
 		image,
 		minio.WithUsername(cred.AccessKey),
 		minio.WithPassword(cred.SecretKey),
+		// Wait on the readiness endpoint rather than a log line. Minio prints
+		// its "API:" banner once; matching it twice only worked locally
+		// because an unrelated storage error log also began with "API:".
 		testcontainers.WithWaitStrategy(
-			wait.ForLog("API:").
-				WithOccurrence(2).
+			wait.ForHTTP("/minio/health/live").
+				WithPort("9000/tcp").
 				WithStartupTimeout(MinioStartupTimeout),
 		),
 	)
