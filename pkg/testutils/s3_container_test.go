@@ -15,9 +15,9 @@ func TestCreateS3Container(t *testing.T) {
 	ctx := context.Background()
 
 	cases := map[string]*testutils.S3TestCred{
-		"nil creds use defaults": nil,
-		"given creds are kept":   {Endpoint: "http://localhost:9000", AccessKey: testutils.DefaultAccessKey, SecretKey: testutils.DefaultSecretKey, UseSSl: false},
-		"empty fields fall back to test":{Endpoint: "http//:localhost:9000"},
+		"nil creds use defaults":         nil,
+		"given creds are kept":           {Endpoint: "http://localhost:9000", AccessKey: testutils.DefaultAccessKey, SecretKey: testutils.DefaultSecretKey, UseSSl: false},
+		"empty fields fall back to test": {Endpoint: "http://localhost:9000"},
 	}
 
 	for name, cred := range cases {
@@ -27,7 +27,7 @@ func TestCreateS3Container(t *testing.T) {
 				t.Fatalf("CreateMinoContainer: %v", err)
 			}
 			t.Cleanup(func() { container.MinioContainer.Terminate(ctx) })
-			t.Log(container.MinioContainer.Username)
+
 			endpoint := container.Credintials.Endpoint
 			accessKey := container.Credintials.AccessKey
 			secredKey := container.Credintials.SecretKey
