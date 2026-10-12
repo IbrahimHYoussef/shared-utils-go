@@ -39,6 +39,14 @@ stored := crypto.HashToken(token)            // lowercase hex SHA-256
 ok := crypto.CheckTokenHash(token, stored)   // constant-time comparison
 ```
 
+For secrets that must be read back (access tokens of integrations), encrypt them at rest with AES-256-GCM. The key is 32 bytes, kept base64 in configuration (`openssl rand -base64 32`):
+
+```go
+key, err := crypto.ParseEncryptionKey(os.Getenv("TOKEN_ENCRYPTION_KEY"))
+sealed, err := crypto.Encrypt(key, token)   // "v1:" + base64(nonce || ciphertext), a fresh nonce each time
+token, err = crypto.Decrypt(key, sealed)    // fails for another key or a changed ciphertext
+```
+
 ### validator
 Input validation utilities.
 
